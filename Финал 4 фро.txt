@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFDelivery — Доставка домашней еды</title>
+    <style>
+        /*1. Настройки оформления страницы*/
+        :root {
+            --primary-color: #ff6500;
+            --primary-hover: #e05900;
+            --bg-color: #212121;
+            --card-bg: #2d2d2d;
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --border-color: #3d3d3d;
+        }
+        /*2. Общие стили для всего сайта*/
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: var(--bg-color); color: var(--text-main); -webkit-font-smoothing: antialiased; }
+        header { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 16px 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border-color); }
+
+        .logo-container { display: flex; align-items: center; gap: 12px; }
+        .logo-img { width: 50px !important; height: 50px !important; object-fit: contain; background: white; border-radius: 50%; padding: 2px; box-sizing: border-box; }
+        .logo-container h1 { margin: 0; font-size: 24px; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; }
+        .logo-container h1 span { color: var(--primary-color); }
+
+        .cart-widget { background: var(--primary-color); color: white; padding: 10px 20px; border-radius: 24px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(255, 101, 0, 0.2); }
+
+        .container { display: flex; max-width: 1200px; margin: 30px auto; padding: 0 20px; gap: 30px; }
+        .catalog { flex: 1; }
+        .sidebar { width: 360px; display: flex; flex-direction: column; gap: 20px; position: sticky; top: 90px; height: fit-content; }
+
+        .search-block { display: flex; gap: 10px; margin-bottom: 24px; }
+        .input-field { flex: 1; padding: 12px 16px; border: 1px solid var(--border-color); background: #333333; color: white; border-radius: 12px; font-size: 15px; outline: none; transition: border 0.2s; }
+        .input-field:focus { border-color: var(--primary-color); }
+
+        .btn { padding: 12px 24px; cursor: pointer; background: var(--primary-color); border: none; color: white; border-radius: 12px; font-weight: 600; font-size: 15px; transition: background 0.2s, transform 0.1s; }
+        .btn:hover { background: var(--primary-hover); }
+        .btn:active { transform: scale(0.98); }
+        .btn-secondary { background: #3d3d3d; color: #eeeeee; }
+        .btn-secondary:hover { background: #4d4d4d; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; margin-top: 15px; }
+        .product-card { background: var(--card-bg); border-radius: 20px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 400px; box-sizing: border-box; }
+
+        .product-img-wrapper { width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; background: #222222; border-radius: 14px; overflow: hidden; margin-bottom: 4px; }
+        .product-pic { width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.3s; }
+        .product-pic:hover { transform: scale(1.04); }
+
+        .product-info { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; }
+        .product-info h4 { margin: 0; font-size: 20px; font-weight: 700; color: var(--text-main); cursor: pointer; transition: color 0.2s; line-height: 1.3; }
+        .product-info h4:hover { color: var(--primary-color); }
+        .product-desc { font-size: 14px; color: var(--text-muted); line-height: 1.4; margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .product-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 10px; border-top: 1px solid #383838; }
+        .price { font-size: 22px; font-weight: 700; color: var(--text-main); }
+
+        .dodo-qty-box { display: inline-flex; align-items: center; background: #333333; border: 1px solid var(--border-color); border-radius: 8px; padding: 2px; margin-right: 8px; }
+        .dodo-qty-btn { background: transparent; border: none; color: #ffffff; width: 24px; height: 28px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .dodo-qty-btn:hover { color: var(--primary-color); }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+
+        .card-box { background: var(--card-bg); padding: 24px; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); border: 1px solid var(--border-color); }
+        .card-box h3 { margin: 0 0 16px 0; font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
+
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 15px; }
+        .cart-item-controls { display: flex; align-items: center; gap: 6px; }
+        .cart-item-controls button { background: #333333; border: 1px solid var(--border-color); color: white; width: 28px; height: 28px; border-radius: 50%; font-weight: bold; cursor: pointer; }
+        .cart-item-controls button:hover { background: #444444; }
+
+        .details-modal { background: #262624; border: 1px solid var(--border-color); padding: 24px; border-radius: 24px; margin-top: 20px; animation: fadeIn 0.3s ease; color: #ffffff; position: relative; }
+        .details-modal h2 { font-size: 26px; font-weight: 700; margin: 0 0 6px 0; color: var(--text-main); }
+        .dodo-main-desc { font-size: 15px; color: #e1e1e1; line-height: 1.5; margin: 0 0 20px 0; max-width: 90%; }
+
+        .dodo-box { background: #363634; padding: 20px; border-radius: 20px; margin-bottom: 18px; }
+        .dodo-toggle { display: inline-flex; background: #262624; padding: 4px; border-radius: 20px; margin-bottom: 20px; }
+        .dodo-tab { border: none; background: transparent; color: #ffffff; padding: 8px 18px; font-size: 14px; font-weight: 600; border-radius: 16px; cursor: pointer; transition: all 0.2s; }
+        .dodo-tab.active { background: #ffffff; color: #111111; }
+
+        .dodo-values { display: grid; grid-template-columns: repeat(4, 1fr); text-align: left; gap: 10px; }
+        .dodo-val { font-size: 22px; font-weight: 700; color: #ffffff; display: block; margin-bottom: 2px; }
+        .dodo-lbl { font-size: 13px; color: var(--text-muted); display: block; }
+
+        .dodo-composition-title { font-size: 14px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .dodo-ingredients-block { font-size: 14px; color: #d0d0d0; line-height: 1.5; margin-bottom: 18px; padding-left: 2px; }
+
+        .dodo-weight-tag { display: inline-block; background: #333331; color: var(--text-muted); padding: 6px 14px; border-radius: 12px; font-size: 14px; font-weight: 600; border: 1px solid #444442; }
+
+        .close-details-btn { position: absolute; top: 20px; right: 20px; background: #363634; border: none; color: white; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .close-details-btn:hover { background: #444444; }
+
+        .error { color: #ff6b6b; font-size: 14px; font-weight: 600; margin-top: 10px; background: #3d2424; padding: 10px; border-radius: 8px; display: none; border: 1px solid #6b3434; }
+        .success-box { background: #1e3d2a; color: #75b787; padding: 16px; border-radius: 12px; margin-top: 15px; font-size: 15px; font-weight: 600; text-align: center; border: 1px solid #2b5c3f; }
+        .auto-time-badge { background: #333331; border: 1px solid var(--border-color); color: #ffffff; padding: 12px; border-radius: 12px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-top: 4px; box-sizing: border-box; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<!--3. Шапка сайта-->
+<header>
+    <div class="logo-container">
+        <img src="logo.jpg" alt="Logo" class="logo-img">
+        <h1 style="margin-left: 10px;">FF<span>Delivery</span></h1>
+    </div>
+    <div class="cart-widget">Корзина: <span id="cart-count">0</span> шт.</div>
+</header>
+
+<!--4. Основной контейнер страницы-->
+<div class="container">
+    <div class="catalog">
+        <!--5. Строка поиска блюд-->
+        <div class="search-block">
+            <input type="text" id="search-input" placeholder="Поиск блюда..." class="input-field">
+            <button class="btn" onclick="loadMenu()">Найти</button>
+            <button class="btn btn-secondary" onclick="resetFilters()">Сбросить</button>
+        </div>
+
+        <!--6. Место для отображения деталей блюда-->
+        <div id="details-view"></div>
+
+        <!--7. Сетка каталога меню-->
+        <div id="menu-list" class="grid"></div>
+    </div>
+
+    <!--8. Боковая панель с составом заказа-->
+    <div class="sidebar">
+        <!--9. Форма оформления заказа-->
+        <div class="card-box">
+            <h3>Состав заказа</h3>
+            <div id="cart-list" style="color: var(--text-muted);">Корзина пуста</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 20px; font-weight:700;">
+                <span>Итого:</span>
+                <span style="font-size: 22px; color: var(--primary-color)"><span id="cart-total">0</span> ₽</span>
+            </div>
+        </div>
+
+        <div class="card-box">
+            <h3>Оформление заказа</h3>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Адрес доставки</label>
+                    <input type="text" id="order-address" placeholder="Город, улица, дом, квартира" class="input-field" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+                </div>
+                <div>
+                    <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Время доставки</label>
+                    <!-- ИСПРАВЛЕНО: Старое поле ввода с часами удалено, теперь тут умная автоплашка -->
+                    <div class="auto-time-badge">Доставим в ближайшее время!</div>
+                </div>
+                <div>
+                    <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Промокод</label>
+                    <input type="text" id="order-promo" placeholder="Если есть" class="input-field" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+                </div>
+                <button class="btn" style="width: 100%; margin-top: 8px;" onclick="checkout()">Заказать доставку</button>
+                <div id="order-error" class="error"></div>
+                <div id="order-success"></div>
+            </div>
+        </div>
+
+        <!--10. Список истории прошлых заказов-->
+        <div class="card-box" style="background: #252525;">
+            <h3>История заказов</h3>
+            <div id="history-list"></div>
+        </div>
+    </div>
+</div>
+
+<script nonce="dodo-secure">
+    //11. Хранилище данных меню в JavaScript
+    let cachedMenu = [];
+
+    //12. Функция загрузки и вывода меню
+    async function loadMenu() {
+        const search = document.getElementById('search-input').value;
+        const res = await fetch(`/api/menu?search=${encodeURIComponent(search)}`);
+        cachedMenu = await res.json();
+
+        const list = document.getElementById('menu-list');
+        list.innerHTML = '';
+
+        if (cachedMenu.length === 0) {
+            list.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">Ничего не найдено</p>';
+            return;
+        }
+
+        const sections = [
+            { name: "Блюда", types: ["пицца", "горячее", "суп", "салат"], emoji: "🍽️" },
+            { name: "Закуски", types: ["закуски"], emoji: "🍟" },
+            { name: "Напитки", types: ["напитки"], emoji: "🥤" }
+        ];
+
+        sections.forEach(cat => {
+            const items = cachedMenu.filter(i => cat.types.includes(i.type));
+
+            if (items.length > 0) {
+                list.innerHTML += '<h3 style="grid-column: 1/-1; font-size: 26px; margin-top: 10px; margin-bottom: 10px; font-weight: 700; color: var(--text-main); text-align: left; width: 100%;">' + cat.name + '</h3>';
+
+                items.forEach(item => {
+                    list.innerHTML +=
+                        '<div class="product-card">' +
+                            '<div class="product-img-wrapper">' +
+                                '<img src="' + item.img + '" alt="' + item.name + '" class="product-pic" onclick="showDetails(' + item.id + ')" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'block\';">' +
+                                '<div class="product-no-pic" style="display:none; font-size:44px; text-align:center; padding-top:40px;">' + cat.emoji + '</div>' +
+                            '</div>' +
+                            '<div class="product-info">' +
+                                '<h4 onclick="showDetails(' + item.id + ')">' + item.name + '</h4>' +
+                                '<div class="product-desc">' + item.desc + '</div>' +
+                            '</div>' +
+                            '<div class="product-footer">' +
+                                '<div class="price">' + item.price + ' ₽</div>' +
+                                '<div style="display: flex; align-items: center;">' +
+                                    '<div class="dodo-qty-box">' +
+                                        '<button class="dodo-qty-btn" onclick="const i=document.getElementById(\'qty-' + item.id + '\'); if(i.value>1)i.value--;">−</button>' +
+                                        '<input type="number" id="qty-' + item.id + '" value="1" min="1" class="qty-input" style="margin-right:0; border:none; width:28px; background:transparent; text-align:center; color:white; font-size:14px; font-weight:600; outline:none;" readonly>' +
+                                        '<button class="dodo-qty-btn" onclick="const i=document.getElementById(\'qty-' + item.id + '\'); i.value++;">+</button>' +
+                                    '</div>' +
+                                    '<button class="btn" style="padding: 10px 16px; font-size:14px; border-radius:10px;" onclick="addToCart(' + item.id + ')">В корзину</button>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>';
+                });
+            }
+        });
+    }
+
+    //13. Функция переключения веса и расчета БЖУ
+    function toggleDodoWeights(mode, id) {
+        const item = cachedMenu.find(p => p.id === id);
+        if(!item) return;
+
+        const btn100 = document.getElementById('tab-100-' + id);
+        const btnAll = document.getElementById('tab-all-' + id);
+
+        const ccalEl = document.getElementById('dodo-ccal-' + id);
+        const bEl = document.getElementById('dodo-b-' + id);
+        const jEl = document.getElementById('dodo-j-' + id);
+        const uEl = document.getElementById('dodo-u-' + id);
+
+        if(mode === '100') {
+            btn100.classList.add('active');
+            btnAll.classList.remove('active');
+            ccalEl.innerText = item.ccal;
+            bEl.innerText = item.b;
+            jEl.innerText = item.j;
+            uEl.innerText = item.u;
+        } else {
+            btn100.classList.remove('active');
+            btnAll.classList.add('active');
+            const multiplier = item.weight / 100;
+            ccalEl.innerText = Math.round(item.ccal * multiplier);
+            bEl.innerText = (item.b * multiplier).toFixed(1);
+            jEl.innerText = (item.j * multiplier).toFixed(1);
+            uEl.innerText = (item.u * multiplier).toFixed(1);
+        }
+    }
+
+    //14. Функция показа подробной информации о блюде
+    function showDetails(id) {
+        const item = cachedMenu.find(p => p.id === id);
+        if(!item) return;
+
+        let labelUnit = "пицца";
+        if(item.type === "суп" || item.type === "салат" || item.type === "горячее") labelUnit = "порция";
+
+        document.getElementById('details-view').innerHTML =
+            '<div class="details-modal">' +
+                '<button class="close-details-btn" onclick="document.getElementById(\'details-view\').innerHTML=\'\'">×</button>' +
+                '<h2>' + item.name + '</h2>' +
+                '<p class="dodo-main-desc">' + item.desc + '</p>' +
+                '<div class="dodo-box">' +
+                    '<div class="dodo-toggle">' +
+                        '<button id="tab-100-' + item.id + '" class="dodo-tab active" onclick="toggleDodoWeights(\'100\', ' + item.id + ')">100 г</button>' +
+                        '<button id="tab-all-' + item.id + '" class="dodo-tab" onclick="toggleDodoWeights(\'all\', ' + item.id + ')">Вся ' + labelUnit + '</button>' +
+                    '</div>' +
+                    '<div class="dodo-values">' +
+                        '<div><span id="dodo-ccal-' + item.id + '" class="dodo-val">' + item.ccal + '</span><span class="dodo-lbl">ккал</span></div>' +
+                        '<div><span id="dodo-b-' + item.id + '" class="dodo-val">' + item.b + '</span><span class="dodo-lbl">белки</span></div>' +
+                        '<div><span id="dodo-j-' + item.id + '" class="dodo-val">' + item.j + '</span><span class="dodo-lbl">жиры</span></div>' +
+                        '<div><span id="dodo-u-' + item.id + '" class="dodo-val">' + item.u + '</span><span class="dodo-lbl">углеводы</span></div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="dodo-composition-title">Состав</div>' +
+                '<div class="dodo-ingredients-block">' + item.ingredients + '</div>' +
+                '<div class="dodo-weight-tag">' + item.weight + ' г</div>' +
+            '</div>';
+    }
+
+    //15. Функция добавления товара в корзину
+    async function addToCart(id) {
+        const quantity = parseInt(document.getElementById('qty-' + id).value) || 1;
+        await fetch('/api/cart', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id, quantity: quantity })
+        });
+        document.getElementById('qty-' + id).value = "1";
+        loadCart();
+    }
+
+    //16. Функция отображения корзины и расчета общих БЖУ
+    async function loadCart() {
+        const res = await fetch('/api/cart');
+        const data = await res.json();
+        const list = document.getElementById('cart-list');
+
+        document.getElementById('cart-total').innerText = data.total;
+        document.getElementById('cart-count').innerText = data.items.reduce((s, i) => s + i.quantity, 0);
+
+        if(data.items.length === 0) {
+            list.innerHTML = "Корзина пуста";
+            return;
+        }
+
+        let totalCcal = 0, totalB = 0, totalJ = 0, totalU = 0;
+        list.innerHTML = '';
+
+        data.items.forEach(item => {
+            const multiplier = (item.weight || 100) / 100;
+            totalCcal += Math.round((item.ccal || 0) * multiplier * item.quantity);
+            totalB += (item.b || 0) * multiplier * item.quantity;
+            totalJ += (item.j || 0) * multiplier * item.quantity;
+            totalU += (item.u || 0) * multiplier * item.quantity;
+
+            const itemEl = document.createElement('div');
+            itemEl.className = 'cart-item';
+            itemEl.innerHTML =
+                '<div>' +
+                    '<div style="font-weight:600;">' + item.name + '</div>' +
+                    '<div style="font-size:12px; color:var(--text-muted);">' + item.price + ' ₽ × ' + item.quantity + '</div>' +
+                '</div>' +
+                '<div class="cart-item-controls">' +
+                    '<button onclick="updateQty(' + item.id + ', \'minus\')">-</button>' +
+                    '<span style="margin: 0 4px; font-weight:600;">' + item.quantity + '</span>' +
+                    '<button onclick="updateQty(' + item.id + ', \'plus\')">+</button>' +
+                    '<button style="background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer; line-height:1; transition:color 0.2s;" onmouseover="this.style.color=\'var(--primary-color)\'" onmouseout="this.style.color=\'var(--text-muted)\'" onclick="updateQty(' + item.id + ', \'delete\')">×</button>' +
+                '</div>';
+            list.appendChild(itemEl);
+        });
+
+        const summaryEl = document.createElement('div');
+        summaryEl.style.cssText = "margin-top: 15px; padding-top: 10px; border-top: 1px dashed var(--border-color); font-size: 11px; color: var(--text-muted);";
+        summaryEl.innerHTML =
+            '<div style="font-weight:600; margin-bottom:5px; color:var(--text-main);">Итого БЖУ заказа:</div>' +
+            '<div style="display:grid; grid-template-columns: repeat(4, 1fr); text-align:center; background:#333333; padding:6px; border-radius:8px; border:1px solid var(--border-color);">' +
+                '<div>🔥 ' + Math.round(totalCcal) + '<br>ккал</div>' +
+                '<div>' + totalB.toFixed(1) + 'г<br>Б</div>' +
+                '<div>' + totalJ.toFixed(1) + 'г<br>Ж</div>' +
+                '<div>' + totalU.toFixed(1) + 'г<br>У</div>' +
+            '</div>';
+        list.appendChild(summaryEl);
+    }
+
+    //17. Функция изменения количества товара в корзине
+    async function updateQty(id, action) {
+        await fetch('/api/cart', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id, action: action })
+        });
+        loadCart();
+    }
+
+    //18. Функция сброса поиска
+    function resetFilters() { document.getElementById('search-input').value = ''; loadMenu(); }
+
+    //19. Функция загрузки истории заказов
+    async function loadHistory() {
+        const res = await fetch('/api/history');
+        const history = await res.json();
+        const list = document.getElementById('history-list');
+        list.innerHTML = history.length === 0 ? '<p style="color: var(--text-muted); font-size:13px; margin:0;">Нет заказов</p>' : '';
+
+        history.forEach(h => {
+            const histEl = document.createElement('div');
+            histEl.style.cssText = "display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:14px;";
+            histEl.innerHTML = '<span>Заказ <b>' + h.id + '</b></span><button class="btn btn-secondary" style="padding:4px 10px; font-size:12px; border-radius:6px;" onclick="repeatOrder(\'' + h.id + '\')">Повторить</button>';
+            list.appendChild(histEl);
+        });
+    }
+
+    //20. Функция повторения старого заказа
+    async function repeatOrder(orderId) {
+        const res = await fetch('/api/history/repeat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: orderId })
+        });
+        if (res.ok) {
+            loadCart();
+        }
+    }
+
+    //21. Функция отправки и проверки заказа
+    async function checkout() {
+        const errBox = document.getElementById('order-error');
+        errBox.style.display = 'none';
+        errBox.innerText = '';
+        document.getElementById('order-success').innerHTML = '';
+
+        const address = document.getElementById('order-address').value;
+        const promo = document.getElementById('order-promo').value;
+
+        const res = await fetch('/api/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: address, promo: promo })
+        });
+        const data = await res.json();
+
+        if(!res.ok) {
+            errBox.innerText = data.error;
+            errBox.style.display = 'block';
+        } else {
+            document.getElementById('order-success').innerHTML = '<div class="success-box">🎉 Заказ №' + data.orderId + ' оформлен! С учетом скидки к оплате: <b>' + data.total + ' ₽</b>. Доставка через 40 минут.</div>';
+            document.getElementById('order-address').value = '';
+            document.getElementById('order-promo').value = '';
+            loadCart();
+            loadHistory();
+        }
+    }
+
+    //22. Первоначальный запуск приложения
+    loadMenu();
+    loadCart();
+    loadHistory();
+</script>
+</body>
+</html>

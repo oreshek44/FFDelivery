@@ -1,0 +1,251 @@
+from flask import Flask, jsonify, request, send_from_directory
+import pandas as pd
+import random
+import sqlite3
+import json
+
+app = Flask(__name__, static_folder='.')
+
+DB_FILE = "ff_delivery.db"
+
+# 1. блок инициализации базы данных
+# эта функция создает таблицу для заказов в локальном файле sqlite, если её еще нет
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS orders (
+            id TEXT PRIMARY KEY,
+            address TEXT NOT NULL,
+            promo TEXT,
+            total INTEGER NOT NULL,
+            items_json TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# 2. блок исходных данных меню
+# здесь хранится полный словарь со всеми характеристиками, составом, бжу и ценами блюд
+menu_data = {
+    "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    "name": [
+        "Пицца 4 сыра", "Пицца Пепперони", "Котлеты с пюре", "Рис с курицей",
+        "Салат Цезарь", "Картофель по-деревенски", "Морс Черничный", "Домашние Сырники",
+        "Картофель фри", "Куриные Стрипсы", "Кока-Кола", "Домашний Квас"
+    ],
+    "price": [450, 490, 290, 320, 390, 140, 95, 180, 150, 220, 90, 85],
+    "type": [
+        "пицца", "пицца", "горячее", "горячее",
+        "салат", "закуски", "напитки", "десерт",
+        "закуски", "закуски", "напитки", "напитки"
+    ],
+    "weight": [640, 580, 350, 320, 250, 150, 450, 160, 150, 180, 500, 500],
+    "ccal": [291.4, 315.0, 185.0, 120.0, 154.0, 131.0, 42.0, 210.0, 318.0, 264.0, 42.0, 27.0],
+    "b": [10.7, 13.1, 11.2, 8.5, 12.5, 3.2, 0.1, 14.2, 3.8, 16.5, 0.0, 0.2],
+    "j": [10.7, 14.2, 9.8, 2.8, 9.1, 4.9, 0.0, 7.5, 15.2, 12.0, 0.0, 0.0],
+    "u": [36.0, 32.5, 14.5, 24.2, 4.8, 21.0, 10.2, 18.4, 41.0, 22.4, 10.6, 5.2],
+    "img": [
+        "pizza_4_cheese.jpg", "pepperoni.jpg", "pure.jpg", "ris.jpg",
+        "salat.jpg", "poderevensry.jpg", "mors.jpg", "syrniki.jpg",
+        "fri.jpg", "strips.jpg", "cola.jpg", "kvas.jpg"
+    ],
+    "desc": [
+        "Ароматная пицца на тонком тесте с четырьмя видами сыра.",
+        "Пикантная пицца с обилием фирменных колбасок пепперони и тающим сыром моцарелла.",
+        "Нежное картофельное пюре на молоке с двумя сочными домашними котлетами.",
+        "Сытный и сбалансированный рис с нежным куриным филе по фирменному рецепту.",
+        "Свежий салат с сочной куриной грудкой, пармезаном и гренками.",
+        "Золотистые дольки картофеля, запеченные со специями и ароматными травами.",
+        "Натуральный домашний морс из спелой лесной черники собственного приготовления.",
+        "Пышные и нежные творожные сырники, обжаренные до золотистой корочки.",
+        "Хрустящие и золотистые тонкие палочки свежего картофеля, обжаренные в горячем масле.",
+        "Нежное и сочное куриное филе в хрустящей панировке со специями.",
+        "Классический сильногазированный освежающий напиток с легендарным вкусом.",
+        "Традиционный русский хлебный квас живого брожения с глубоким насыщенным вкусом."
+    ],
+    "ingredients": [
+        "Тесто, фирменный белый соус, моцарелла, пармезан, чеддер, блю чиз",
+        "Тесто, фирменный томатный соус, сыр моцарелла, острые колбаски пепперони, итальянские травы",
+        "Картофель, молоко, сливочное масло, фарш домашний (говядина/свинина), лук, специи",
+        "Рис отварной, куриное филе гриль, морковь, лук, легкие азиатские специи, зелень",
+        "Куриное филе гриль, салат романо, томаты черри, сухарики, пармезан, соус цезарь",
+        "Картофель, подсолнечное масло, чеснок, паприка, соль, итальянские травы",
+        "Вода питьевая, черника свежая, сахар-песок",
+        "Творог 9%, фермерское яйцо, пшеничная мука, ванильный сахар, щепотка соли",
+        "Картофель натуральный, растительное масло, соль поваренная пищевая",
+        "Куриное филе, панировочные сухари, мука пшеничная, специи, чесночный порошок",
+        "Очищенная газированная вода, сахар, натуральный краситель карамель, ортофосфорная кислота",
+        "Вода, ржаной солод, ячменный солод, ржаная мука, сахар, чистые культуры дрожжей"
+    ],
+    "available": [True, True, True, True, True, True, True, True, True, True, True, True]
+}
+df_menu = pd.DataFrame(menu_data)
+
+# глобальная переменная для хранения текущих выбранных товаров в корзине
+cart_list = []
+
+# 3. блок статической маршрутизации интерфейса
+# этот обработчик отвечает за отдачу сопутствующих медиафайлов и блокирует доступ к скриптам
+@app.route('/<path:filename>')
+def serve_static(filename):
+    if filename.endswith('.py') or filename.startswith('.'):
+        return jsonify({"error": "Access denied"}), 403
+    return send_from_directory('.', filename)
+
+# 4. блок получения меню интернет-магазина
+# функция возвращает список всех блюд и поддерживает контекстный поиск по названию
+@app.route('/api/menu', methods=['GET'])
+def get_menu():
+    search = request.args.get('search', '').strip()
+    filtered_df = df_menu.copy()
+    if search:
+        filtered_df = filtered_df[filtered_df['name'].str.contains(search, case=False, na=False)]
+    return jsonify(filtered_df.to_dict(orient='records'))
+
+# 5. блок отображения корзины покупателя
+# этот метод рассчитывает и возвращает суммарную стоимость всех добавленных товаров
+@app.route('/api/cart', methods=['GET'])
+def get_cart():
+    if not cart_list:
+        return jsonify({"items": [], "total": 0})
+    df_cart = pd.DataFrame(cart_list)
+    total = int((df_cart['price'] * df_cart['quantity']).sum())
+    return jsonify({"items": cart_list, "total": total})
+
+# 6. block добавления позиций в корзину
+# функция принимает идентификатор товара и увеличивает его количество или создает новую запись
+@app.route('/api/cart', methods=['POST'])
+def add_to_cart():
+    data = request.json
+    try:
+        prod_id = int(data['id'])
+        quantity = int(data['quantity'])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "Некорректные данные"}), 400
+
+    product_row = df_menu[df_menu['id'] == prod_id]
+    if product_row.empty:
+        return jsonify({"error": "Товар не найден"}), 404
+
+    product = product_row.to_dict(orient='records')[0]
+
+    for item in cart_list:
+        if item['id'] == prod_id:
+            item['quantity'] += quantity
+            return jsonify({"message": "Количество обновлено"})
+
+    product['quantity'] = quantity
+    cart_list.append(product)
+    return jsonify({"message": "Добавлено в корзину"})
+
+# 7. блок корректировки количества товаров
+# обработчик уменьшает или увеличивает число блюд в корзине, а также полностью удаляет позиции
+@app.route('/api/cart', methods=['PUT'])
+def update_cart():
+    global cart_list
+    data = request.json
+    prod_id = int(data['id'])
+    action = data['action']
+
+    for item in cart_list:
+        if item['id'] == prod_id:
+            if action == 'plus':
+                item['quantity'] += 1
+            elif action == 'minus':
+                item['quantity'] -= 1
+
+            if item['quantity'] <= 0 or action == 'delete':
+                cart_list = [i for i in cart_list if i['id'] != prod_id]
+            break
+    return jsonify({"success": True})
+
+# 8. блок архивации и выгрузки истории
+# этот метод извлекает список всех оформленных ранее заказов из архивных записей базы данных
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, items_json FROM orders ORDER BY rowid DESC')
+    rows = cursor.fetchall()
+    conn.close()
+
+    history = []
+    for row in rows:
+        history.append({
+            "id": row[0],
+            "items": json.loads(row[1])
+        })
+    return jsonify(history)
+
+# 9. блок дублирования старого заказа
+# функция находит старый архивный чек по его идентификатору и переносит весь его состав в корзину
+@app.route('/api/history/repeat', methods=['POST'])
+def repeat_order():
+    global cart_list
+    order_id = request.json.get('orderId')
+
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT items_json FROM orders WHERE id = ?', (order_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({"error": "Заказ не найден"}), 404
+
+    old_items = json.loads(row[0])
+    cart_list = []
+    for item in old_items:
+        cart_list.append(item.copy())
+    return jsonify({"success": True})
+
+# 10. блок верификации и создания нового заказа
+# метод проверяет ограничения по сумме и адресу, рассчитывает скидку и сохраняет чек в базу данных
+@app.route('/api/order', methods=['POST'])
+def create_order():
+    global cart_list
+    data = request.json
+    address = data.get('address', '').strip()
+    promo = data.get('promo', '').strip()
+
+    if not address:
+        return jsonify({"error": "Заполните адрес доставки!"}), 400
+    if not cart_list:
+        return jsonify({"error": "Корзина пуста"}), 400
+
+    df_cart = pd.DataFrame(cart_list)
+    total = int((df_cart['price'] * df_cart['quantity']).sum())
+
+    if total < 500:
+        return jsonify({"error": "Минимальная сумма заказа — 500 рублей!"}), 400
+    if promo == "NEZACHET":
+        return jsonify({"error": "Срок действия промокода истек!"}), 400
+    if promo == "ZACHET":
+        total = int(total * 0.9)
+
+    order_id = f"ORD-{random.randint(1000, 9999)}"
+    items_json = json.dumps(cart_list)
+
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO orders (id, address, promo, total, items_json)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (order_id, address, promo, total, items_json))
+    conn.commit()
+    conn.close()
+
+    cart_list = []
+    return jsonify({"success": True, "orderId": order_id, "total": total})
+
+# 11. блок открытия главной страницы и запуска веб-сервера
+# при переходе по корневому адресу сервер отправляет файл разметки и активирует сетевой порт 3000
+@app.route('/')
+def index():
+    return send_from_directory('.', 'index.html')
+
+if __name__ == '__main__':
+    app.run(port=3000, debug=True)
